@@ -1,22 +1,31 @@
 from fastmcp import FastMCP
-import os
 import sqlite3
+import json
+from pathlib import Path
 import database
 
 mcp = FastMCP("Expense Tracker")
 database.init_db()
 
+CATEGORIES_PATH = Path(__file__).parent / "categories.json"
+with open(CATEGORIES_PATH) as f:
+    CATEGORIES = json.load(f)
+
 ##create the tool for add expenses
 
 @mcp.tool()
-def add_expenses(date,amount,category, subCategory="", comments=""):
-    '''Add a new expense entry to the database'''
+def add_expenses(date, amount, description, category, sub_category="", comments=""):
+    '''Add a new expense entry to the database.
+    Based on the description, intelligently pick category and sub_category from this list:
+    ''' + json.dumps(CATEGORIES) + '''
+    Always choose the most specific sub_category that matches the expense description.'''
+
     with sqlite3.connect(database.DB_PATH) as c:
         curr = c.execute(
             "INSERT INTO expenses(date, amount, category, sub_category, comments) VALUES (?,?,?,?,?)",
-            (date, amount, category, subCategory, comments)
+            (date, amount, category, sub_category, comments or description)
         )
-        return {"status": "ok", "id":curr.lastrowid}
+        return {"status": "ok", "id": curr.lastrowid, "category": category, "sub_category": sub_category}
 
 ##Read the existing expenses
 @mcp.tool()
